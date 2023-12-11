@@ -1,4 +1,5 @@
 #include <gtk/gtk.h>
+#include <stdio.h>
 
 typedef struct
 {
@@ -7,7 +8,6 @@ typedef struct
 
 typedef struct {
     GtkWidget *id_entry;
-    GtkWidget *pwd_entry;
 } LoginWidgets;
 
 /* GtkEntry 로부터 GtkTextView 로 텍스트 삽입 */
@@ -20,8 +20,7 @@ static void insert_text(GtkButton *button, Widgets *w)
     buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(w->textview));
     text = gtk_entry_get_text(GTK_ENTRY(w->entry));
     mark = gtk_text_buffer_get_insert(buffer);
-    gtk_text_buffer_get_iter_at_mark(buffer, &iter,
-                                     mark);
+    gtk_text_buffer_get_iter_at_mark(buffer, &iter, mark);
     /* 버퍼에 텍스트가 있으면 뉴라인 삽입 */
     if (gtk_text_buffer_get_char_count(buffer))
         gtk_text_buffer_insert(buffer, &iter, "\n", 1);
@@ -69,11 +68,15 @@ void show_file_chooser(GtkWidget *widget, gpointer data) {
 }
 
 // 새로운 윈도우를 띄우는 함수
-void show_new_window(GtkWidget *widget, gpointer data) {
+void show_new_window(GtkWidget *widget, const char *id) {
     GtkWidget *new_window, *scrolled_win, *hbox, *vbox,
         *insert, *file;
+
     Widgets *w = g_slice_new(Widgets);
 
+    char loginId[50];
+    sprintf(loginId, "%s is logined.", id);
+    
 
     // 새로운 윈도우 생성
     new_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -81,7 +84,7 @@ void show_new_window(GtkWidget *widget, gpointer data) {
     gtk_container_set_border_width(GTK_CONTAINER(new_window), 10);
 
     // 윈도우 크기 설정
-    gtk_widget_set_size_request(new_window, 200, 100);
+    gtk_widget_set_size_request(new_window, 200, 400);
 
     w->textview = gtk_text_view_new();
     w->entry = gtk_entry_new();
@@ -110,45 +113,41 @@ void show_new_window(GtkWidget *widget, gpointer data) {
                        TRUE, 0);
     gtk_container_add(GTK_CONTAINER(new_window), vbox);
 
+    GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(w->textview));
+    GtkTextIter iter;
+    gtk_text_buffer_get_end_iter(buffer, &iter);
+    gtk_text_buffer_insert(buffer, &iter, loginId, -1);
+    gtk_text_buffer_insert(buffer, &iter, "\n", -1);
+
     // 윈도우를 보이게 함
     gtk_widget_show_all(new_window);
 }
 
-
-
-// 로그인 버튼을 눌렀을 때 호출되는 함수
-// void on_login_button_clicked(GtkWidget *widget, gpointer data) {
-//     // 여기에 실제 로그인 처리 로직을 추가할 수 있음
-
-//     // 로그인 후 새로운 윈도우를 띄움
-//     show_new_window(widget, data);
-// }
-
 void login_button_clicked(GtkWidget *widget, gpointer data) {
     LoginWidgets *login_widgets = (LoginWidgets *)data;
     const char *id = gtk_entry_get_text(GTK_ENTRY(login_widgets->id_entry));
-    const char *pwd = gtk_entry_get_text(GTK_ENTRY(login_widgets->pwd_entry));
 
-    // 간단한 로그인 체크
-    if (strcmp(id, "test") == 0 && strcmp(pwd, "1234") == 0) {
-        // 로그인 성공 시 새로운 창 열기
-        show_new_window(widget, NULL);
-    } else {
-        // 로그인 실패 메시지 표시
+
+    if (id == NULL || strlen(id) == 0) {
+        // ID가 입력되지 않았을 때 처리
         GtkWidget *error_dialog = gtk_message_dialog_new(GTK_WINDOW(gtk_widget_get_toplevel(widget)),
                                                          GTK_DIALOG_DESTROY_WITH_PARENT,
                                                          GTK_MESSAGE_ERROR,
                                                          GTK_BUTTONS_OK,
-                                                         "Login failed. Please check your ID and password.");
+                                                         "Please enter your ID.");
         gtk_dialog_run(GTK_DIALOG(error_dialog));
         gtk_widget_destroy(error_dialog);
+        return;  // ID가 비어 있으면 로그인 거부
     }
+
+
+
+    show_new_window(widget, id);
 }
 
 int main(int argc, char *argv[]) {
     GtkWidget *window;
     GtkWidget *id_entry;
-    GtkWidget *pwd_entry;
     GtkWidget *login_button;
 
     gtk_init(&argc, &argv);
@@ -156,12 +155,11 @@ int main(int argc, char *argv[]) {
     LoginWidgets *login_widgets = g_slice_new(LoginWidgets);
 
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(window), "Login Example");
+    gtk_window_set_title(GTK_WINDOW(window), "Login");
+    gtk_widget_set_size_request(window, 200, 400);
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
     id_entry = gtk_entry_new();
-    pwd_entry = gtk_entry_new();
-    gtk_entry_set_visibility(GTK_ENTRY(pwd_entry), FALSE); // 비밀번호 입력을 위해 가려주기
     login_button = gtk_button_new_with_label("Login");
 
     // 로그인 버튼 클릭 시 동작을 설정
@@ -170,14 +168,12 @@ int main(int argc, char *argv[]) {
     // UI 레이아웃 설정
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     gtk_box_pack_start(GTK_BOX(box), id_entry, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(box), pwd_entry, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(box), login_button, FALSE, FALSE, 0);
 
     gtk_container_add(GTK_CONTAINER(window), box);
 
     // 구조체에 위젯 저장
     login_widgets->id_entry = id_entry;
-    login_widgets->pwd_entry = pwd_entry;
 
     gtk_widget_show_all(window);
 
@@ -189,36 +185,3 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-// int main(int argc, char *argv[]) {
-//     GtkWidget *window;
-//     GtkWidget *grid;
-//     GtkWidget *login_button;
-
-//     // GTK 초기화
-//     gtk_init(&argc, &argv);
-
-//     // 메인 윈도우 생성
-//     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-//     gtk_window_set_title(GTK_WINDOW(window), "Login Window");
-//     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
-
-//     // 그리드 생성
-//     grid = gtk_grid_new();
-//     gtk_container_add(GTK_CONTAINER(window), grid);
-
-//     // 로그인 버튼 생성 및 설정
-//     login_button = gtk_button_new_with_label("Login");
-//     g_signal_connect(login_button, "clicked", G_CALLBACK(on_login_button_clicked), NULL);
-//     gtk_grid_attach(GTK_GRID(grid), login_button, 1, 1, 1, 1);
-
-//     // 윈도우 크기 설정
-//     gtk_widget_set_size_request(window, 300, 200);
-
-//     // 윈도우를 보이게 함
-//     gtk_widget_show_all(window);
-
-//     // GTK 메인 루프 실행
-//     gtk_main();
-
-//     return 0;
-// }
