@@ -1,3 +1,8 @@
+/*
+빌드 $ gcc `pkg-config --cflags gtk+-3.0` -o main main.c `pkg-config --libs gtk+-3.0`
+한글 사용안됨
+*/
+
 #include <gtk/gtk.h>
 #include <stdio.h>
 
@@ -93,10 +98,8 @@ void show_new_window(GtkWidget *widget, const char *id) {
     g_signal_connect(file, "clicked", G_CALLBACK(show_file_chooser), w);
     //insert 버튼
     insert = gtk_button_new_with_label("Insert Text");
-    g_signal_connect(insert, "clicked",
-                     G_CALLBACK(insert_text), (gpointer)w);
-    scrolled_win = gtk_scrolled_window_new(NULL,
-                                           NULL);
+    g_signal_connect(insert, "clicked", G_CALLBACK(insert_text), (gpointer)w);
+    scrolled_win = gtk_scrolled_window_new(NULL, NULL);
     gtk_container_add(GTK_CONTAINER(scrolled_win),
                       w->textview);
     hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
@@ -113,6 +116,7 @@ void show_new_window(GtkWidget *widget, const char *id) {
                        TRUE, 0);
     gtk_container_add(GTK_CONTAINER(new_window), vbox);
 
+    // user is logined 텍스트 추가
     GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(w->textview));
     GtkTextIter iter;
     gtk_text_buffer_get_end_iter(buffer, &iter);
@@ -122,7 +126,7 @@ void show_new_window(GtkWidget *widget, const char *id) {
     // 윈도우를 보이게 함
     gtk_widget_show_all(new_window);
 }
-
+//로그인창 로그인 버튼 클릭
 void login_button_clicked(GtkWidget *widget, gpointer data) {
     LoginWidgets *login_widgets = (LoginWidgets *)data;
     const char *id = gtk_entry_get_text(GTK_ENTRY(login_widgets->id_entry));
