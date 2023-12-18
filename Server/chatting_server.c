@@ -5,13 +5,22 @@
 #include <string.h>
 #include <sys/epoll.h>
 
-#define MAX_BUF 80
-#define MAX_CLIENT 1
+#define MAX_BUF 70
+#define MAX_CLIENT 10
 
 int client_count=0;
 int client_socks[MAX_CLIENT];
-char client_names[MAX_CLIENT][MAX_BUF];
+char client_names[MAX_CLIENT][10];
 int client_sock;
+
+void send_all(char* msg,int msg_len)
+{
+    //send (echo)
+    for (int i=0; i<client_count; i++)
+    {
+        write(client_socks[i], msg, msg_len); 
+    }
+}
 
 int main() {
     int server_sock;
@@ -68,21 +77,25 @@ int main() {
 
         for (int i = 0; i < event_count; ++i) {
             if (events[i].data.fd == server_sock) {
-                // Accept new connection
-                client_sock = accept(server_sock, (struct sockaddr*)&client_addr, &sin_size);
-                if (client_sock == -1) {
-                    perror("accept");
-                    continue;
-                }
+            // Accept new connection
+            client_sock = accept(server_sock, (struct sockaddr*)&client_addr, &sin_size);
+            if (client_sock == -1) {
+                perror("accept");
+                continue;
+            }
 
-                int bytes_received = recv(client_sock, client_names[client_count], sizeof(client_names[client_count]) - 1, 0);
-                if (bytes_received <= 0) {
-                    perror("recv");
-                    close(client_sock);
-                    continue;
-                }
+            int bytes_received = recv(client_sock, client_names[client_count], sizeof(client_names[client_count]) - 1, 0);
+            if (bytes_received <= 0) {
+            perror("recv");
+            close(client_sock);
+            continue;
+            }
                 client_names[client_count][bytes_received] = '\0';
-                printf("New Client %s connected\n", client_names[client_count]);
+                char client_message[80];
+                snprintf(client_message, sizeof(client_message), "New Client %s connected\n", client_names[client_count]);
+
+                printf("%s", client_message);
+                send_all(client_message, strlen(client_message));
 
                 client_socks[client_count++] = client_sock;
 
@@ -96,25 +109,40 @@ int main() {
                 }
             } else {
                 // 메시지 받기
+                int client_index = -1;
+                for (int j = 0; j < client_count; ++j) {
+                    if (events[i].data.fd == client_socks[j]) {
+                        client_index = j;
+                        break;
+                    }
+                }
+
+                if (client_index == -1) {
+                    // 에러 처리
+                    perror("Client index not found");
+                    continue;
+                }
+
                 int bytes_received = recv(events[i].data.fd, buf, sizeof(buf) - 1, 0);
                 if (bytes_received <= 0) {
-                    //클라이언트 종료
-                    printf("Client %s disconnected\n",client_names[i]);
+                    // 클라이언트 종료
+                   char client_message[80];
+                    snprintf(client_message, sizeof(client_message), "Client %s disconnected\n", client_names[client_index]);
+
+                    printf("%s", client_message);
+                    send_all(client_message, strlen(client_message));
                     epoll_ctl(epoll_fd, EPOLL_CTL_DEL, events[i].data.fd, NULL);
                     close(events[i].data.fd);
                 } else {
-                    //받은거 출력
+                    // 받은 거 출력
                     buf[bytes_received] = '\0';
-                    printf("received message : %s\n", buf);
-                    
-                    char client_message[160];
-                    snprintf(client_message, sizeof(client_message), "%s: %s", client_names[i], buf);
+                    printf("%s: %s\n", client_names[client_index], buf);
 
-                    //send (echo)
-                    for (int j=0; j<client_count; j++)
-                    {
-                        write(client_socks[j], client_message, strlen(client_message)); 
-                    }
+                    char client_message[80];
+                    snprintf(client_message, sizeof(client_message), "%s: %s", client_names[client_index], buf);
+
+                    // send (echo)
+                    send_all(client_message, strlen(client_message));
                 }
             }
         }

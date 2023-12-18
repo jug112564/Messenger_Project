@@ -3,7 +3,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 
-#define PORT 12345
+#define PORT 8001
 #define BUFFER_SIZE 1024
 
 void error(const char *msg) {
